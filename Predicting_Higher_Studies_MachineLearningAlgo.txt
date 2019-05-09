@@ -1,0 +1,248 @@
+# -*- coding: utf-8 -*-
+"""
+Created on Mon Nov 26 08:46:29 2018
+
+@author: Humayra
+"""
+
+import pandas as pd
+import numpy as np
+from sklearn.linear_model import LogisticRegression
+from sklearn.model_selection import train_test_split
+from sklearn.metrics import classification_report
+import matplotlib.pyplot as plt
+
+from sklearn.metrics import roc_curve, auc
+
+
+from sklearn import tree 
+
+
+Mdf = pd.read_csv('student-mat-edit.csv')
+Pdf = pd.read_csv('student-por-edit.csv')
+
+#dimention of datasets
+#print('Shape of Mdf:{}'.format(Mdf.shape))
+#print('Shape of Pdf:{}'.format(Pdf.shape))
+
+
+#Add column "Subject" that describes which course the student has taken.
+#Mdf['Subject'] = 'M'
+Pdf['Subject'] = 'P'
+
+#create Aalc
+Pdf.loc[:,'Aalc'] = (Pdf['Dalc']*5 + Pdf['Walc']*2)/7
+#remove not interested variables
+Pdf = Pdf.drop(['G1', 'G2', 'Dalc', 'Walc'], axis=1)
+
+
+#Identify target variable y and predictor variables X.
+#Yp = Pdf['G3']
+Xp = Pdf[['sex', 'age', 'address', 'famsize', 'Pstatus', 'Medu', 'Fedu',
+       'guardian', 'studytime', 'failures', 'schoolsup', 'famsup', 'activities',
+       'internet', 'romantic', 'famrel', 'freetime', 'goout',
+       'health', 'absences', 'G3', 'Aalc']]
+# Convert dummy variables values into 0/1.
+Xp.sex = Xp['sex'].replace(['F','M'],[1,0])
+Xp.address = Xp['address'].replace(['U','R'], [1,0])
+Xp.famsize = Xp['famsize'].replace(['LE3','GT3'], [1,0])
+Xp.Pstatus = Xp['Pstatus'].replace(['T','A'], [1,0])
+Xp.guardian = Xp['guardian'].replace(['other', 'mother','father'], [0, 1, 2])
+Xp.schoolsup = Xp['schoolsup'].replace(['yes','no'],[1,0])
+Xp.famsup = Xp['famsup'].replace(['yes','no'],[1,0])
+Xp.activities = Xp['activities'].replace(['yes','no'],[1,0])
+Xp.internet = Xp['internet'].replace(['yes','no'],[1,0])
+Xp.romantic = Xp['romantic'].replace(['yes','no'],[1,0])
+
+Yp = Pdf[['higher']]
+Yp.higher = Yp['higher'].replace(['yes','no'],[1,0])
+print(Yp.shape)
+
+##Identify norminal variables
+#norminal_vars = ['Fjob', 'Mjob', 'Subject', 'reason','guardian']
+##Convert norminal variables to dummy variables
+#Xp = pd.get_dummies(Xp, columns= norminal_vars, drop_first=True)
+
+print('Shape of Xp:{}'.format(Xp.shape))
+#print(Xp)
+
+# Split data into training and test data sets.
+Xp_train, Xp_test, yp_train, yp_test = train_test_split(Xp, Yp, test_size = 0.3, random_state=42)
+
+
+
+print("Before Over-sampling Imbalanced data:")
+
+Y_train = np.array(yp_train)
+#print(np.bincount(Y_train))
+
+
+'''Applying LogisticRegression'''
+
+LogReg = LogisticRegression()
+LogReg.fit(Xp_train, yp_train)
+
+y_pred = LogReg.predict(Xp_test)
+
+from sklearn.metrics import confusion_matrix
+
+confusion_matrix = confusion_matrix(yp_test, y_pred)
+print(confusion_matrix)
+
+print(classification_report(yp_test, y_pred))
+
+
+from sklearn.metrics import accuracy_score 
+print("Accuracy is :{0}".format(accuracy_score(yp_test, y_pred)*100))
+
+#fpr = dict()
+#tpr = dict()
+#roc_auc = dict()
+#for i in range(Yp.shape[1]):
+#    fpr[i], tpr[i], _ = roc_curve(yp_test.values[:, i], y_pred.values[:, i])
+#    roc_auc[i] = auc(fpr[i], tpr[i])
+#
+#fpr["micro"], tpr["micro"], _ = roc_curve(yp_test.ravel(), y_pred.ravel())
+#roc_auc["micro"] = auc(fpr["micro"], tpr["micro"])
+#
+#plt.figure()
+#lw = 2
+#plt.plot(fpr[2], tpr[2], color='darkorange',
+#         lw=lw, label='ROC curve (area = %0.2f)' % roc_auc[2])
+#plt.plot([0, 1], [0, 1], color='navy', lw=lw, linestyle='--')
+#plt.xlim([0.0, 1.0])
+#plt.ylim([0.0, 1.05])
+#plt.xlabel('False Positive Rate')
+#plt.ylabel('True Positive Rate')
+#plt.title('Receiver operating characteristic example')
+#plt.legend(loc="lower right")
+#plt.show()
+
+
+#from sklearn.metrics import roc_curve, auc
+fpr, tpr, thresholds = roc_curve(yp_test, y_pred)
+roc_auc = auc(fpr, tpr)
+
+#ROC before balancing classes
+plt.plot(fpr, tpr, color='navy', label='ROC curve (area = %0.2f)' % roc_auc)
+plt.plot([0, 1], [0, 1], color='red', linestyle='--')
+plt.xlim([0.0, 1.0])
+plt.ylim([0.0, 1.05])
+plt.xlabel('False Positive Rate')
+plt.ylabel('True Positive Rate')
+plt.title('Receiver operating characteristic')
+plt.legend(loc="lower right")
+plt.show()
+
+
+'''Applying Desicion Tree'''
+decisionTreeClassifier = tree.DecisionTreeClassifier(criterion="entropy", random_state=42) 
+
+decisionTreeClassifier.fit(Xp_train.astype(int),yp_train.astype(int)) 
+y_pred = decisionTreeClassifier.predict(Xp_test)
+
+from sklearn.metrics import confusion_matrix
+
+cm = confusion_matrix(yp_test,y_pred)
+print(cm)
+
+print(classification_report(yp_test, y_pred))
+
+
+print("Accuracy is :{0}".format(accuracy_score(yp_test.astype(int),y_pred)*100))
+
+from sklearn.metrics import roc_curve, auc
+fpr, tpr, thresholds = roc_curve(yp_test, y_pred)
+roc_auc = auc(fpr, tpr)
+
+#ROC before balancing classes
+plt.plot(fpr, tpr, color='navy', label='ROC curve (area = %0.2f)' % roc_auc)
+plt.plot([0, 1], [0, 1], color='red', linestyle='--')
+plt.xlim([0.0, 1.0])
+plt.ylim([0.0, 1.05])
+plt.xlabel('False Positive Rate')
+plt.ylabel('True Positive Rate')
+plt.title('Receiver operating characteristic')
+plt.legend(loc="lower right")
+plt.show()
+
+print('Shape of Xp:{}'.format(Xp.shape))
+print('Shape of Yp:{}'.format(Yp.shape))
+
+
+print("After Over-sampling Imbalanced data:")
+
+
+#Solving imbalanced data
+from imblearn.over_sampling import SMOTE
+smt = SMOTE(random_state=42)
+Xp_train, yp_train = smt.fit_sample(Xp_train, yp_train)
+
+'''Applying LogisticRegression'''
+
+LogReg = LogisticRegression()
+LogReg.fit(Xp_train, yp_train)
+
+y_pred = LogReg.predict(Xp_test)
+
+from sklearn.metrics import confusion_matrix
+confusion_matrix = confusion_matrix(yp_test, y_pred)
+print(confusion_matrix)
+
+print("New Accuracy is :{0}".format(accuracy_score(yp_test, y_pred)*100))
+
+
+print(classification_report(yp_test, y_pred))
+
+from sklearn.metrics import roc_curve, auc
+fpr, tpr, thresholds = roc_curve(yp_test, y_pred)
+roc_auc = auc(fpr, tpr)
+
+
+#ROC after balancing classes
+plt.plot(fpr, tpr, color='navy', label='ROC curve (area = %0.2f)' % roc_auc)
+plt.plot([0, 1], [0, 1], color='red', linestyle='--')
+plt.xlim([0.0, 1.0])
+plt.ylim([0.0, 1.05])
+plt.xlabel('False Positive Rate')
+plt.ylabel('True Positive Rate')
+plt.title('Receiver operating characteristic')
+plt.legend(loc="lower right")
+plt.show()
+#
+#print('Shape of Xp:{}'.format(Xp.shape))
+#print('Shape of Yp:{}'.format(Yp.shape))
+
+'''Applying Desicion Tree'''
+decisionTreeClassifier = tree.DecisionTreeClassifier(criterion="entropy", random_state=42) 
+
+decisionTreeClassifier.fit(Xp_train.astype(int),yp_train.astype(int)) 
+y_pred = decisionTreeClassifier.predict(Xp_test)
+
+from sklearn.metrics import confusion_matrix
+
+cm = confusion_matrix(yp_test,y_pred)
+print(cm)
+
+print("New Accuracy is :{0}".format(accuracy_score(yp_test.astype(int),y_pred)*100))
+
+print(classification_report(yp_test, y_pred))
+
+from sklearn.metrics import roc_curve, auc
+fpr, tpr, thresholds = roc_curve(yp_test, y_pred)
+roc_auc = auc(fpr, tpr)
+
+
+#ROC after balancing classes
+plt.plot(fpr, tpr, color='navy', label='ROC curve (area = %0.2f)' % roc_auc)
+plt.plot([0, 1], [0, 1], color='red', linestyle='--')
+plt.xlim([0.0, 1.0])
+plt.ylim([0.0, 1.05])
+plt.xlabel('False Positive Rate')
+plt.ylabel('True Positive Rate')
+plt.title('Receiver operating characteristic')
+plt.legend(loc="lower right")
+plt.show()
+
+#print('Shape of Xp:{}'.format(Xp.shape))
+#print('Shape of Yp:{}'.format(Yp.shape))
